@@ -1,0 +1,152 @@
+name: Production Release Workflow
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  CANARY_THRESHOLD: 0.1
+  HEALTH_CHECK_RETRIES: 5
+  ROLLBACK_THRESHOLD: 0.05
+
+jobs:
+  release:
+    name: Production Release
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Verify security scan status
+        uses: ./.github/workflows/security-scan.yml
+        with:
+          security_report: ${{ needs.security-scan.outputs.security_report }}
+          vulnerability_assessment: ${{ needs.security-scan.outputs.vulnerability_assessment }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registries: ${{ env.ECR_REGISTRY }}
+
+      - name: Setup Kubernetes tools
+        uses: helm/kind-action@v1.5.0
+        with:
+          version: v0.20.0
+          kubectl_version: v1.27.3
+
+      - name: Prepare release artifacts
+        id: prepare_release
+        run: |
+          VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\/v//')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          
+          # Generate changelog
+          git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD > CHANGELOG.md
+          
+          # Verify build artifacts
+          if [[ ! -f "backend-ci.yml" ]] || [[ ! -f "frontend-ci.yml" ]]; then
+            echo "Error: Required build artifacts missing"
+            exit 1
+          fi
+          
+          # Generate deployment manifests
+          envsubst < k8s/production/*.yaml > k8s/production/rendered/
+          
+          # Create rollback scripts
+          cat > rollback.sh << 'EOF'
+          kubectl rollout undo deployment/frontend -n production
+          kubectl rollout undo deployment/backend -n production
+          EOF
+          chmod +x rollback.sh
+
+      - name: Deploy canary release
+        id: canary_deployment
+        run: |
+          # Deploy canary with 10% traffic
+          kubectl apply -f k8s/production/rendered/canary/
+          kubectl set env deployment/canary VERSION=${{ steps.prepare_release.outputs.version }}
+          
+          # Monitor health for 5 minutes
+          for i in {1..${HEALTH_CHECK_RETRIES}}; do
+            if kubectl get pods -l app=canary -o jsonpath='{.status.phase}' | grep -q "Running"; then
+              echo "Canary deployment healthy"
+              break
+            fi
+            if [ $i -eq ${HEALTH_CHECK_RETRIES} ]; then
+              echo "Canary deployment failed health checks"
+              ./rollback.sh
+              exit 1
+            fi
+            sleep 60
+          done
+
+      - name: Full production deployment
+        if: steps.canary_deployment.outcome == 'success'
+        run: |
+          # Gradually increase traffic
+          kubectl apply -f k8s/production/rendered/
+          kubectl set env deployment/production VERSION=${{ steps.prepare_release.outputs.version }}
+          
+          # Monitor error rates
+          ERROR_RATE=$(kubectl exec -it monitoring/prometheus-0 -- \
+            promql-cli "sum(rate(http_requests_total{status=~'5..'}[5m])) / \
+            sum(rate(http_requests_total[5m])) * 100")
+          
+          if (( $(echo "$ERROR_RATE > $ROLLBACK_THRESHOLD" | bc -l) )); then
+            echo "Error rate exceeded threshold: $ERROR_RATE%"
+            ./rollback.sh
+            exit 1
+          fi
+
+      - name: Notify stakeholders
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: 'releases'
+          slack-message: |
+            *Release Status: ${{ job.status }}*
+            Version: ${{ steps.prepare_release.outputs.version }}
+            
+            *Changelog:*
+            ```
+            $(cat CHANGELOG.md)
+            ```
+            
+            *Deployment Metrics:*
+            - Error Rate: ${{ env.ERROR_RATE }}%
+            - Health Status: ${{ steps.canary_deployment.outcome }}
+            
+            *Artifacts:*
+            - Release Tag: ${{ github.ref }}
+            - Commit: ${{ github.sha }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Archive release artifacts
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-artifacts
+          path: |
+            k8s/production/rendered/
+            CHANGELOG.md
+            rollback.sh
+          retention-days: 30
