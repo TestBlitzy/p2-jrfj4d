@@ -1,0 +1,50 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sales-intelligence-backend-hpa
+  namespace: sales-intelligence
+  labels:
+    app: sales-intelligence
+    component: backend
+    environment: production
+    managed-by: terraform
+  annotations:
+    monitoring.sales-intelligence.io/scaling-metrics: enabled
+    monitoring.sales-intelligence.io/alert-threshold: critical
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sales-intelligence-backend
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    # Scale up behavior
+    scaleUp:
+      stabilizationWindowSeconds: 60  # 1 minute stabilization window
+      policies:
+      - type: Pods
+        value: 2  # Add up to 2 pods at a time
+        periodSeconds: 60
+    # Scale down behavior
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5 minute cool-down period
+      policies:
+      - type: Pods
+        value: 1  # Remove 1 pod at a time
+        periodSeconds: 60
