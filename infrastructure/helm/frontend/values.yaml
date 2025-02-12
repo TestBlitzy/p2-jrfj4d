@@ -1,0 +1,140 @@
+# Default values for frontend Helm chart
+# This is a YAML-formatted file.
+
+# Number of replicas for the frontend deployment
+replicaCount: 3
+
+# Container image configuration
+image:
+  repository: sales-intelligence/frontend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Image pull secrets if needed for private registries
+imagePullSecrets: []
+
+# Override name of the chart
+nameOverride: ""
+# Override the full name of resources
+fullnameOverride: ""
+
+# ServiceAccount configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations for metrics collection
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "80"
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Container security context
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Service configuration for internal access
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+
+# Ingress configuration for external access
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: app.sales-intelligence.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: frontend-tls
+      hosts:
+        - app.sales-intelligence.com
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: "1"
+    memory: 2Gi
+  requests:
+    cpu: 800m
+    memory: 1.6Gi
+
+# Horizontal Pod Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Node selector for pod scheduling
+nodeSelector: {}
+
+# Pod tolerations
+tolerations: []
+
+# Pod affinity rules for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - frontend
+          topologyKey: kubernetes.io/hostname
+
+# Health check probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 80
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Pod Disruption Budget for availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Deployment update strategy
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
