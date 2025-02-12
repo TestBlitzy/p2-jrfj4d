@@ -1,0 +1,212 @@
+// Core SCSS themes file for Sales & Intelligence Platform
+// Package: sass ^1.69.0
+
+@import './variables';
+@import './mixins';
+
+// =============================================================================
+// Theme Functions
+// =============================================================================
+
+@function get-theme-value($theme-key, $fallback-value) {
+  @if not $theme-key {
+    @error 'Theme key is required';
+  }
+  
+  $current-theme: var(--current-theme, 'light');
+  $theme-map: if($current-theme == 'dark', $dark-theme, $light-theme);
+  
+  @if not map-has-key($theme-map, $theme-key) {
+    @warn 'Theme key #{$theme-key} not found, using fallback';
+    @return $fallback-value;
+  }
+  
+  $value: map-get($theme-map, $theme-key);
+  @if type-of($value) == 'color' and not validate-contrast($value, map-get($theme-map, 'background-primary')) {
+    @warn 'Contrast ratio does not meet WCAG 2.1 standards for #{$theme-key}';
+  }
+  
+  @return $value;
+}
+
+@function validate-contrast($foreground, $background) {
+  // Convert colors to relative luminance
+  $l1: get-relative-luminance($foreground);
+  $l2: get-relative-luminance($background);
+  
+  // Calculate contrast ratio
+  $ratio: if($l1 > $l2, ($l1 + 0.05) / ($l2 + 0.05), ($l2 + 0.05) / ($l1 + 0.05));
+  
+  // Return true if meets WCAG 2.1 AA standard (4.5:1 for normal text)
+  @return $ratio >= 4.5;
+}
+
+@function get-relative-luminance($color) {
+  $r: red($color) / 255;
+  $g: green($color) / 255;
+  $b: blue($color) / 255;
+  
+  $r: if($r <= 0.03928, $r / 12.92, pow(($r + 0.055) / 1.055, 2.4));
+  $g: if($g <= 0.03928, $g / 12.92, pow(($g + 0.055) / 1.055, 2.4));
+  $b: if($b <= 0.03928, $b / 12.92, pow(($b + 0.055) / 1.055, 2.4));
+  
+  @return $r * 0.2126 + $g * 0.7152 + $b * 0.0722;
+}
+
+// =============================================================================
+// Theme Variables
+// =============================================================================
+
+$light-theme: (
+  background: (
+    primary: #ffffff,
+    secondary: #f8f9fa,
+    tertiary: #f1f3f5,
+    elevated: #ffffff
+  ),
+  surface: (
+    primary: #ffffff,
+    secondary: #f8f9fa,
+    interactive: #e9ecef
+  ),
+  text: (
+    primary: #212529,
+    secondary: #495057,
+    tertiary: #868e96,
+    interactive: #228be6
+  ),
+  border: (
+    primary: #dee2e6,
+    secondary: #e9ecef,
+    focus: #228be6
+  ),
+  shadow: (
+    sm: 0 1px 3px rgba(0,0,0,0.1),
+    md: 0 4px 6px rgba(0,0,0,0.1),
+    lg: 0 10px 15px rgba(0,0,0,0.1)
+  ),
+  status: (
+    success: #40c057,
+    warning: #fab005,
+    error: #fa5252,
+    info: #228be6
+  )
+);
+
+$dark-theme: (
+  background: (
+    primary: #121212,
+    secondary: #1e1e1e,
+    tertiary: #252525,
+    elevated: #2d2d2d
+  ),
+  surface: (
+    primary: #1e1e1e,
+    secondary: #252525,
+    interactive: #2d2d2d
+  ),
+  text: (
+    primary: #ffffff,
+    secondary: #ced4da,
+    tertiary: #868e96,
+    interactive: #74c0fc
+  ),
+  border: (
+    primary: #2d2d2d,
+    secondary: #343434,
+    focus: #74c0fc
+  ),
+  shadow: (
+    sm: 0 1px 3px rgba(0,0,0,0.3),
+    md: 0 4px 6px rgba(0,0,0,0.3),
+    lg: 0 10px 15px rgba(0,0,0,0.3)
+  ),
+  status: (
+    success: #51cf66,
+    warning: #fcc419,
+    error: #ff6b6b,
+    info: #74c0fc
+  )
+);
+
+// =============================================================================
+// Theme Provider
+// =============================================================================
+
+.theme-provider {
+  color-scheme: light dark;
+  transition-duration: var(--theme-transition-duration, 200ms);
+  
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+  
+  // Generate CSS custom properties for light theme
+  @each $category, $values in $light-theme {
+    @each $key, $value in $values {
+      --light-#{$category}-#{$key}: #{$value};
+    }
+  }
+  
+  // Generate CSS custom properties for dark theme
+  @each $category, $values in $dark-theme {
+    @each $key, $value in $values {
+      --dark-#{$category}-#{$key}: #{$value};
+    }
+  }
+  
+  // Default to light theme
+  @each $category, $values in $light-theme {
+    @each $key, $value in $values {
+      --#{$category}-#{$key}: var(--light-#{$category}-#{$key});
+    }
+  }
+  
+  // Dark theme override
+  &[data-theme="dark"] {
+    @each $category, $values in $dark-theme {
+      @each $key, $value in $values {
+        --#{$category}-#{$key}: var(--dark-#{$category}-#{$key});
+      }
+    }
+  }
+  
+  // System preference override
+  @media (prefers-color-scheme: dark) {
+    &:not([data-theme="light"]) {
+      @each $category, $values in $dark-theme {
+        @each $key, $value in $values {
+          --#{$category}-#{$key}: var(--dark-#{$category}-#{$key});
+        }
+      }
+    }
+  }
+}
+
+// =============================================================================
+// Focus Visible Implementation
+// =============================================================================
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+  
+  @media (prefers-reduced-motion: no-preference) {
+    transition: outline-color 200ms ease-in-out;
+  }
+}
+
+// =============================================================================
+// Exports
+// =============================================================================
+
+:export {
+  lightTheme: $light-theme;
+  darkTheme: $dark-theme;
+  
+  themeFunctions: (
+    getThemeValue: get-theme-value,
+    validateContrast: validate-contrast
+  );
+}
