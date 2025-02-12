@@ -1,0 +1,163 @@
+# Helm values configuration for Sales & Intelligence Platform Backend
+# Version: 1.0.0
+# Last Updated: 2024-01-20
+
+# Global name overrides
+nameOverride: ""
+fullnameOverride: "sales-intelligence-backend"
+
+# Deployment configuration
+replicaCount: 3
+
+# Container image configuration
+image:
+  repository: sales-intelligence/backend
+  tag: latest
+  pullPolicy: Always
+
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+# Service account configuration
+serviceAccount:
+  create: true
+  name: "sales-intelligence-backend"
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789:role/sales-intelligence-backend"
+
+# Pod annotations for monitoring and configuration
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: "/metrics"
+  checksum/config: "${sha256sum config}"
+  vault.hashicorp.com/agent-inject: "true"
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+  targetPort: 3000
+  protocol: TCP
+  name: http
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-min-version: TLSv1.3
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/enable-modsecurity: "true"
+    nginx.ingress.kubernetes.io/enable-owasp-core-rules: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+
+# Resource requests and limits
+resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+# Horizontal Pod Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+
+# Node selector for pod scheduling
+nodeSelector:
+  kubernetes.io/os: linux
+  node.kubernetes.io/purpose: backend
+
+# Pod affinity rules
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - sales-intelligence-backend
+          topologyKey: kubernetes.io/hostname
+
+# Node tolerations
+tolerations:
+  - key: backend
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+
+# Health check probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 30
