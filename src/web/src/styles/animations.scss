@@ -1,0 +1,188 @@
+// Core SCSS animations for Sales & Intelligence Platform
+// Package: sass ^1.69.0
+
+@import './variables';
+@import './mixins';
+
+// =============================================================================
+// Keyframe Animations
+// =============================================================================
+
+// Fade animations
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+// RTL-aware slide animations
+@keyframes slide-in-ltr {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-ltr {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes slide-in-rtl {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-rtl {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+// Scale animation
+@keyframes scale-in {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Loading spinner animation
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// =============================================================================
+// Animation Classes
+// =============================================================================
+
+// Fade animations with hardware acceleration and reduced motion support
+.fade-in {
+  @include hardware-accelerate;
+  animation: fade-in map-get($transition-duration, normal) map-get($transition-timing, default);
+
+  @include reduced-motion {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.fade-out {
+  @include hardware-accelerate;
+  animation: fade-out map-get($transition-duration, normal) map-get($transition-timing, default);
+
+  @include reduced-motion {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+// RTL-aware slide animations with performance optimization
+.slide-in {
+  @include hardware-accelerate;
+  animation: slide-in-ltr map-get($transition-duration, slow) map-get($transition-timing, smooth);
+
+  @include rtl {
+    animation-name: slide-in-rtl;
+  }
+
+  @include reduced-motion {
+    animation: none;
+    transform: translateX(0);
+  }
+}
+
+.slide-out {
+  @include hardware-accelerate;
+  animation: slide-out-ltr map-get($transition-duration, slow) map-get($transition-timing, smooth);
+
+  @include rtl {
+    animation-name: slide-out-rtl;
+  }
+
+  @include reduced-motion {
+    animation: none;
+    transform: translateX(100%);
+  }
+}
+
+// Scale animation with accessibility support
+.scale-in {
+  @include hardware-accelerate;
+  animation: scale-in map-get($transition-duration, normal) map-get($transition-timing, bounce);
+
+  @include reduced-motion {
+    animation: none;
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Loading spinner with reduced motion alternative
+.spinner {
+  @include hardware-accelerate;
+  animation: rotate 1s linear infinite;
+
+  @include reduced-motion {
+    animation: none;
+    // Provide static loading indicator for reduced motion
+    &::after {
+      content: "Loading...";
+    }
+  }
+}
+
+// =============================================================================
+// Interactive Element States
+// =============================================================================
+
+// Hover state transitions
+.hover-lift {
+  @include transition(transform);
+  @include interactive-hover;
+}
+
+// Active state transitions
+.active-press {
+  @include transition(transform);
+  @include interactive-active;
+}
+
+// Focus state transitions
+.focus-outline {
+  @include transition(box-shadow);
+  @include interactive-focus;
+}
+
+// =============================================================================
+// Page Transition Effects
+// =============================================================================
+
+.page-enter {
+  @include hardware-accelerate;
+  opacity: 0;
+  transform: translateY(20px);
+  
+  &.page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    @include transition(all, map-get($transition-duration, slow), map-get($transition-timing, smooth));
+  }
+}
+
+.page-exit {
+  @include hardware-accelerate;
+  opacity: 1;
+  
+  &.page-exit-active {
+    opacity: 0;
+    transform: translateY(-20px);
+    @include transition(all, map-get($transition-duration, slow), map-get($transition-timing, smooth));
+  }
+}
