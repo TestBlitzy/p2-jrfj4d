@@ -1,0 +1,94 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sales-intelligence-backend-ingress
+  namespace: sales-intelligence
+  labels:
+    app: sales-intelligence
+    component: backend
+    environment: production
+    tier: external
+    managed-by: terraform
+  annotations:
+    # Ingress controller configuration
+    kubernetes.io/ingress.class: "nginx"
+    
+    # SSL/TLS configuration with cert-manager
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/renewal-threshold: "720h"
+    
+    # SSL/TLS security settings
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-min-version: "TLSv1.3"
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    
+    # Request handling configuration
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    
+    # CORS configuration
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    
+    # Security headers configuration
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+      more_set_headers "Content-Security-Policy: default-src 'self';";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    
+    # Rate limiting configuration
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "2"
+    
+    # WAF configuration with ModSecurity
+    nginx.ingress.kubernetes.io/enable-modsecurity: "true"
+    nginx.ingress.kubernetes.io/enable-owasp-core-rules: "true"
+    nginx.ingress.kubernetes.io/modsecurity-snippet: |
+      SecRuleEngine On
+      SecRequestBodyAccess On
+      SecAuditEngine RelevantOnly
+      SecAuditLogParts ABIJDEFHZ
+    
+    # Monitoring configuration
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "10254"
+
+spec:
+  tls:
+  - hosts:
+    - api.sales-intelligence.com
+    secretName: sales-intelligence-tls
+  
+  rules:
+  - host: api.sales-intelligence.com
+    http:
+      paths:
+      - path: /api/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: sales-intelligence-backend
+            port:
+              number: 3000
+      
+      # Health check endpoint
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: sales-intelligence-backend
+            port:
+              number: 3000
+
+status:
+  loadBalancer:
+    ingress:
+    - hostname: api.sales-intelligence.com
