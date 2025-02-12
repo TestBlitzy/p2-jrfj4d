@@ -1,0 +1,154 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20.x'
+  TEST_COVERAGE_THRESHOLD: 80
+  BUILD_TIMEOUT: 30
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ env.BUILD_TIMEOUT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: src/web
+
+      - name: Type check
+        run: npm run type-check
+        working-directory: src/web
+
+      - name: Lint code
+        run: npm run lint
+        working-directory: src/web
+
+      - name: Run tests with coverage
+        run: |
+          npm run test:coverage -- --ci --coverage-threshold=${{ env.TEST_COVERAGE_THRESHOLD }}
+        working-directory: src/web
+
+      - name: Build application
+        run: npm run build
+        working-directory: src/web
+        env:
+          VITE_API_URL: ${{ secrets.API_URL }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: src/web/dist
+
+  security-scan:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Scan dependencies
+        uses: snyk/actions/node@v3
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Generate security report
+        run: |
+          npm audit --json > security-report.json || true
+        working-directory: src/web
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: src/web/security-report.json
+
+  docker-build:
+    needs: security-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+          path: src/web/dist
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: src/web
+          file: src/web/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKER_REGISTRY }}/frontend:${{ github.sha }}
+            ${{ secrets.DOCKER_REGISTRY }}/frontend:latest
+          build-args: |
+            API_URL=${{ secrets.API_URL }}
+            APP_VERSION=${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/frontend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/frontend:buildcache,mode=max
+
+      - name: Scan container image
+        uses: aquasecurity/trivy-action@v1
+        with:
+          image-ref: ${{ secrets.DOCKER_REGISTRY }}/frontend:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload container scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: container-scan-results
+          path: trivy-results.txt
