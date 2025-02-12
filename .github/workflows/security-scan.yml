@@ -1,0 +1,190 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 0 * * *'  # Daily security scan
+
+env:
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  SEVERITY_THRESHOLD: high
+
+jobs:
+  sast-scan:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript, typescript, python
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:javascript,typescript,python"
+          upload: true
+          output: sarif-results
+
+      - name: Upload SAST Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: sast-results
+          path: sarif-results
+          retention-days: 7
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: sast-scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Frontend Dependency Scan
+        uses: snyk/actions/node@0.4.0
+        env:
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
+        with:
+          args: --file=src/web/package.json --severity-threshold=${{ env.SEVERITY_THRESHOLD }}
+          command: test
+
+      - name: Backend Dependency Scan
+        uses: snyk/actions/node@0.4.0
+        env:
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
+        with:
+          args: --file=src/backend/package.json --severity-threshold=${{ env.SEVERITY_THRESHOLD }}
+          command: test
+
+      - name: Generate Dependency Report
+        run: |
+          mkdir -p security-reports
+          npm audit --json > security-reports/dependency-audit.json || true
+        working-directory: src/backend
+
+      - name: Upload Dependency Scan Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-scan-results
+          path: security-reports
+          retention-days: 7
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: dependency-scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Frontend Container Scan
+        uses: aquasecurity/trivy-action@0.11.2
+        with:
+          image-ref: 'src/web/Dockerfile'
+          format: 'sarif'
+          output: 'frontend-trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+
+      - name: Backend Container Scan
+        uses: aquasecurity/trivy-action@0.11.2
+        with:
+          image-ref: 'src/backend/Dockerfile'
+          format: 'sarif'
+          output: 'backend-trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+
+      - name: Upload Container Scan Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: container-scan-results
+          path: |
+            frontend-trivy-results.sarif
+            backend-trivy-results.sarif
+          retention-days: 7
+
+  compliance-check:
+    name: Security Compliance Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: container-scan
+
+    steps:
+      - name: Run Security Compliance Checks
+        run: |
+          echo "Checking security compliance requirements..."
+          
+          # Check SAST results
+          if [ -f "sarif-results/javascript.sarif" ]; then
+            echo "Analyzing SAST results..."
+            if grep -q '"level":"error"' "sarif-results/javascript.sarif"; then
+              echo "Critical security issues found in SAST scan"
+              exit 1
+            fi
+          fi
+          
+          # Check dependency scan results
+          if [ -f "security-reports/dependency-audit.json" ]; then
+            echo "Analyzing dependency scan results..."
+            if grep -q '"severity":"high"' "security-reports/dependency-audit.json"; then
+              echo "High severity vulnerabilities found in dependencies"
+              exit 1
+            fi
+          fi
+          
+          # Check container scan results
+          if [ -f "frontend-trivy-results.sarif" ] && [ -f "backend-trivy-results.sarif" ]; then
+            echo "Analyzing container scan results..."
+            if grep -q '"level":"error"' "frontend-trivy-results.sarif" || grep -q '"level":"error"' "backend-trivy-results.sarif"; then
+              echo "Critical vulnerabilities found in container images"
+              exit 1
+            fi
+          fi
+          
+          echo "All security compliance checks passed"
+
+      - name: Generate Security Report
+        if: always()
+        run: |
+          mkdir -p security-reports
+          {
+            echo "# Security Scan Report"
+            echo "## Scan Date: $(date)"
+            echo "## Results Summary"
+            echo "- SAST Scan: ${SAST_STATUS:-Unknown}"
+            echo "- Dependency Scan: ${DEP_STATUS:-Unknown}"
+            echo "- Container Scan: ${CONTAINER_STATUS:-Unknown}"
+            echo "## Recommendations"
+            echo "Please review attached detailed reports for specific findings"
+          } > security-reports/summary.md
+
+      - name: Upload Compliance Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-compliance-report
+          path: security-reports
+          retention-days: 30
