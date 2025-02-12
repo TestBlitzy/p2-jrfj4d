@@ -1,0 +1,143 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: sales-intelligence
+  annotations:
+    security.kubernetes.io/policy-type: zero-trust
+    security.kubernetes.io/last-updated: "2024-01-20"
+    security.kubernetes.io/enforce: strict
+    policy.kubernetes.io/audit: enabled
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-backend
+  namespace: sales-intelligence
+  annotations:
+    network.kubernetes.io/metrics-port: "true"
+    security.kubernetes.io/review-required: "true"
+    description: "Allow frontend pods to communicate with backend services"
+spec:
+  podSelector:
+    matchLabels:
+      app: sales-intelligence
+      component: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+          component: web
+          version: v1
+    ports:
+    - port: 3000
+      protocol: TCP
+    - port: 9090
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-database
+  namespace: sales-intelligence
+  annotations:
+    database.kubernetes.io/connection-pool: enabled
+    security.kubernetes.io/encryption: required
+    description: "Allow backend pods to communicate with database"
+spec:
+  podSelector:
+    matchLabels:
+      app: sales-intelligence
+      component: backend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres-service
+    ports:
+    - port: 5432
+      protocol: TCP
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis-service
+    ports:
+    - port: 6379
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring
+  namespace: sales-intelligence
+  annotations:
+    monitoring.kubernetes.io/scrape: "true"
+    monitoring.kubernetes.io/path: /metrics
+    monitoring.kubernetes.io/port: "9090"
+    description: "Allow Prometheus to scrape metrics from pods"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+          type: prometheus
+    ports:
+    - port: 9090
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: sales-intelligence
+  annotations:
+    description: "Allow DNS resolution for all pods"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway
+  namespace: sales-intelligence
+  annotations:
+    description: "Allow ingress traffic from API Gateway"
+spec:
+  podSelector:
+    matchLabels:
+      app: sales-intelligence
+      component: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - port: 3000
+      protocol: TCP
