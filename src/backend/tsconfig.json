@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "moduleResolution": "node",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"]
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": true,
+    "allowJs": true,
+    "noEmit": false,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}
