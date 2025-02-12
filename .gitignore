@@ -1,0 +1,105 @@
+# Dependencies
+node_modules/
+node_modules
+.pnp
+.pnp.js
+
+# Build and Distribution
+dist/
+build/
+.next/
+.nuxt/
+coverage/
+
+# Environment and Configuration
+.env
+.env.*
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+*.config.json
+*.secret
+secrets/
+.aws/
+
+# Security and Certificates
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+*.crt
+*.csr
+*.der
+*.rsa
+*.dsa
+*.gpg
+*.pgp
+certs/
+kubernetes/secrets/
+
+# Infrastructure
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+terraform.tfvars
+
+# AI/ML
+model_checkpoints/
+trained_models/
+*.h5
+*.ckpt
+*.pb
+
+# Logs and Debug
+*.log
+logs/
+*.debug
+tmp/
+
+# Cache and Compiled Files
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.cache
+*.cache
+__snapshots__/
+
+# IDE and Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test and Coverage
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# Misc
+*.bak
+*.tmp
+*.temp
+.sass-cache/
+.eslintcache
+.stylelintcache
