@@ -1,0 +1,272 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: sales-intelligence
+  labels:
+    app: grafana
+    component: monitoring
+data:
+  grafana.ini: |
+    [server]
+    protocol = http
+    http_port = 3000
+    domain = grafana.sales-intelligence.svc.cluster.local
+    root_url = %(protocol)s://%(domain)s:%(http_port)s/
+    serve_from_sub_path = true
+    
+    [security]
+    admin_password = ${GRAFANA_ADMIN_PASSWORD}
+    secret_key = ${GRAFANA_SECRET_KEY}
+    cookie_secure = true
+    cookie_samesite = strict
+    allow_embedding = false
+    content_security_policy = true
+    strict_transport_security = true
+    
+    [auth]
+    disable_login_form = false
+    oauth_auto_login = true
+    
+    [auth.generic_oauth]
+    enabled = true
+    name = OAuth
+    allow_sign_up = true
+    client_id = ${OAUTH_CLIENT_ID}
+    client_secret = ${OAUTH_CLIENT_SECRET}
+    scopes = openid profile email
+    auth_url = https://oauth.example.com/authorize
+    token_url = https://oauth.example.com/token
+    api_url = https://oauth.example.com/userinfo
+    allowed_domains = company.com
+
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        jsonData:
+          timeInterval: "30s"
+          queryTimeout: "60s"
+          httpMethod: "POST"
+        version: 1
+        editable: true
+
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'AI-Platform'
+        orgId: 1
+        folder: 'Sales Intelligence Platform'
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: sales-intelligence
+  labels:
+    app: grafana
+    component: dashboards
+data:
+  ai-model-performance.json: |
+    {
+      "title": "AI Model Performance",
+      "panels": [
+        {
+          "title": "Lead Scoring Accuracy",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "targets": [
+            "lead_scoring_model_accuracy",
+            "lead_scoring_precision",
+            "lead_scoring_recall"
+          ],
+          "thresholds": [
+            {"value": 0, "color": "red"},
+            {"value": 70, "color": "yellow"},
+            {"value": 90, "color": "green"}
+          ]
+        },
+        {
+          "title": "Revenue Forecast Deviation",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            "revenue_forecast_deviation_percentage",
+            "revenue_forecast_confidence_interval"
+          ],
+          "alert": {
+            "name": "High Forecast Deviation",
+            "conditions": ["deviation > 15%"],
+            "frequency": "5m"
+          }
+        }
+      ]
+    }
+  database-performance.json: |
+    {
+      "title": "Database Performance",
+      "panels": [
+        {
+          "title": "Query Performance",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            "database_query_duration_seconds",
+            "database_query_errors_total",
+            "database_connection_pool_usage"
+          ],
+          "alert": {
+            "name": "Slow Queries",
+            "conditions": ["duration > 1s"],
+            "frequency": "1m"
+          }
+        },
+        {
+          "title": "Cache Performance",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "targets": [
+            "cache_hit_ratio",
+            "cache_miss_ratio",
+            "cache_eviction_rate"
+          ]
+        }
+      ]
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: sales-intelligence
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: grafana
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.0.3
+          ports:
+            - name: http
+              containerPort: 3000
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-config
+              mountPath: /etc/grafana
+            - name: grafana-dashboards
+              mountPath: /var/lib/grafana/dashboards
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: admin-password
+            - name: GF_SECURITY_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: secret-key
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+        - name: grafana-config
+          configMap:
+            name: grafana-config
+        - name: grafana-dashboards
+          configMap:
+            name: grafana-dashboards
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: sales-intelligence
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: sales-intelligence
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+  selector:
+    app: grafana
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: grafana-pdb
+  namespace: sales-intelligence
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: grafana
