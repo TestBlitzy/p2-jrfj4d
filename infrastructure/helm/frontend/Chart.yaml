@@ -1,0 +1,22 @@
+apiVersion: v2
+name: sales-intelligence-frontend
+description: Helm chart for deploying the Sales & Intelligence Platform frontend application
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+
+keywords:
+  - sales
+  - intelligence
+  - frontend
+  - react
+
+maintainers:
+  - name: DevOps Team
+    email: devops@sales-intelligence.com
+
+dependencies:
+  - name: nginx-ingress
+    version: 4.7.1
+    repository: https://kubernetes.github.io/ingress-nginx
+    condition: ingress.enabled
