@@ -1,0 +1,274 @@
+// Core SCSS styles for Sales & Intelligence Platform components
+// Package: sass ^1.69.0
+
+@import './variables';
+@import './mixins';
+
+// =============================================================================
+// Theme Variables
+// =============================================================================
+
+:root {
+  --theme-mode: light;
+  --theme-background: #{map-get($theme-light, background)};
+  --theme-text: #{map-get($theme-light, text)};
+  --transition-speed: #{map-get($transition-duration, normal)};
+  --animation-curve: #{map-get($transition-timing, default)};
+}
+
+// Dark theme support
+[data-theme='dark'] {
+  --theme-mode: dark;
+  --theme-background: #{map-get($theme-dark, background)};
+  --theme-text: #{map-get($theme-dark, text)};
+}
+
+// =============================================================================
+// Button Components
+// =============================================================================
+
+.btn {
+  @include flex-center;
+  padding: $spacing-sm $spacing-md;
+  border-radius: 4px;
+  font-weight: $font-weight-medium;
+  border: none;
+  cursor: pointer;
+  @include transition(all);
+  @include interactive-focus;
+
+  // Primary variant
+  &--primary {
+    background-color: $color-primary-base;
+    color: $color-primary-contrast;
+
+    &:hover {
+      background-color: $color-primary-light;
+      @include shadow-sm;
+      @include interactive-hover;
+    }
+
+    &:active {
+      background-color: $color-primary-dark;
+      @include interactive-active;
+    }
+  }
+
+  // Secondary variant
+  &--secondary {
+    background-color: $color-secondary-base;
+    color: $color-secondary-contrast;
+
+    &:hover {
+      background-color: $color-secondary-light;
+      @include shadow-sm;
+      @include interactive-hover;
+    }
+
+    &:active {
+      background-color: $color-secondary-dark;
+      @include interactive-active;
+    }
+  }
+
+  // Loading state
+  &--loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+
+    &::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border: 2px solid;
+      border-radius: 50%;
+      border-color: transparent currentColor currentColor currentColor;
+      animation: spin 0.6s linear infinite;
+    }
+  }
+
+  // Disabled state
+  &:disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  // Responsive adjustments
+  @include mobile {
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-body-small;
+  }
+}
+
+// =============================================================================
+// Card Components
+// =============================================================================
+
+.card {
+  padding: $spacing-md;
+  border-radius: 8px;
+  background-color: var(--theme-background);
+  @include shadow-sm;
+  @include transition(all);
+
+  &:hover {
+    @include shadow-md;
+    transform: translateY(-2px);
+  }
+
+  // Header section
+  &__header {
+    @include flex-between;
+    margin-bottom: $spacing-md;
+  }
+
+  // Content section
+  &__content {
+    margin-bottom: $spacing-md;
+  }
+
+  // Footer section
+  &__footer {
+    @include flex-between;
+    padding-top: $spacing-sm;
+    border-top: 1px solid map-get($theme-light, border);
+  }
+
+  // Responsive adjustments
+  @include mobile {
+    padding: $spacing-sm;
+  }
+}
+
+// =============================================================================
+// Form Components
+// =============================================================================
+
+.input {
+  width: 100%;
+  padding: $spacing-sm;
+  border: 1px solid map-get($theme-light, border);
+  border-radius: 4px;
+  font-size: $font-size-body-medium;
+  @include transition(border-color);
+
+  &:focus {
+    border-color: $color-primary-base;
+    outline: none;
+    @include focus-visible;
+  }
+
+  // Error state
+  &--error {
+    @include error-state;
+  }
+
+  // Success state
+  &--success {
+    @include success-state;
+  }
+
+  // Disabled state
+  &:disabled {
+    background-color: map-get($theme-light, surface);
+    cursor: not-allowed;
+  }
+}
+
+// =============================================================================
+// Modal Components
+// =============================================================================
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: map-get($z-index, modal);
+  opacity: 0;
+  visibility: hidden;
+  @include transition(opacity);
+  @include flex-center;
+
+  // Open state
+  &--open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  // Modal content
+  &__content {
+    position: relative;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    background-color: var(--theme-background);
+    border-radius: 8px;
+    padding: $spacing-lg;
+    overflow-y: auto;
+    @include shadow-lg;
+    @include hardware-accelerate;
+
+    @include mobile {
+      width: 100%;
+      margin: 0;
+      border-radius: 0;
+      height: 100vh;
+      max-height: 100vh;
+    }
+  }
+
+  // Close button
+  &__close {
+    position: absolute;
+    top: $spacing-md;
+    right: $spacing-md;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: $spacing-xs;
+    @include transition(transform);
+
+    &:hover {
+      transform: scale(1.1);
+    }
+
+    @include rtl {
+      right: auto;
+      left: $spacing-md;
+    }
+  }
+}
+
+// =============================================================================
+// Animation Keyframes
+// =============================================================================
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// =============================================================================
+// Utility Classes
+// =============================================================================
+
+.visually-hidden {
+  @include screen-reader-only;
+}
+
+.hardware-accelerated {
+  @include hardware-accelerate;
+}
+
+.optimize-animation {
+  @include optimize-animation;
+}
