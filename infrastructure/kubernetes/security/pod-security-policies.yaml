@@ -1,0 +1,105 @@
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: restricted-psp
+  namespace: sales-intelligence
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default,docker/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName: 'runtime/default'
+    kubernetes.io/description: 'Restricted policy for sales intelligence platform workloads'
+    security.alpha.kubernetes.io/pod-security-policy: 'restricted'
+spec:
+  # Prevent privileged containers and privilege escalation
+  privileged: false
+  allowPrivilegeEscalation: false
+  defaultAllowPrivilegeEscalation: false
+  
+  # Drop all capabilities by default
+  requiredDropCapabilities:
+    - ALL
+  allowedCapabilities: []
+  
+  # Restrict volume types
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+    - persistentVolumeClaim
+  
+  # Prevent host namespace sharing
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  
+  # Enforce non-root user
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 10000
+        max: 65535
+  
+  # SELinux configuration
+  seLinux:
+    rule: RunAsAny
+  
+  # Group configurations
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 10000
+        max: 65535
+  
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 10000
+        max: 65535
+  
+  # Filesystem restrictions
+  readOnlyRootFilesystem: true
+  allowedHostPaths: []
+  
+  # System restrictions
+  sysctls: []
+  forbiddenSysctls:
+    - '*'
+  allowedUnsafeSysctls: []
+
+---
+# RBAC configuration for PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: psp:restricted
+  labels:
+    app: sales-intelligence
+    security-tier: restricted
+rules:
+  - apiGroups: ['policy']
+    resources: ['podsecuritypolicies']
+    verbs: ['use']
+    resourceNames: ['restricted-psp']
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: psp:restricted
+  labels:
+    app: sales-intelligence
+    security-tier: restricted
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:restricted
+subjects:
+  - kind: Group
+    apiGroup: rbac.authorization.k8s.io
+    name: system:authenticated
+  - kind: ServiceAccount
+    name: default
+    namespace: sales-intelligence
