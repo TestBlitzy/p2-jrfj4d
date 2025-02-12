@@ -1,0 +1,210 @@
+// Core SCSS mixins for Sales & Intelligence Platform
+// Package: sass ^1.69.0
+
+@import './variables';
+
+// =============================================================================
+// Functions
+// =============================================================================
+
+@function rem($pixel_value) {
+  @if type-of($pixel_value) != 'number' {
+    @error 'Value must be a number';
+  }
+  @return #{$pixel_value / 16}rem;
+}
+
+@function validate-map-get($map, $key) {
+  @if not $map {
+    @error 'Map does not exist';
+  }
+  @if not map-has-key($map, $key) {
+    @error 'Key #{$key} not found in map';
+  }
+  @return map-get($map, $key);
+}
+
+// =============================================================================
+// Layout Mixins
+// =============================================================================
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// =============================================================================
+// Responsive Mixins
+// =============================================================================
+
+@mixin mobile {
+  @media (max-width: map-get(map-get($breakpoints, mobile), max)) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: map-get(map-get($breakpoints, tablet), min)) and 
+         (max-width: map-get(map-get($breakpoints, tablet), max)) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: map-get(map-get($breakpoints, desktop), min)) {
+    @content;
+  }
+}
+
+// =============================================================================
+// Accessibility Mixins
+// =============================================================================
+
+@mixin focus-visible {
+  outline: 2px solid $color-primary-base;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px white;
+}
+
+@mixin screen-reader-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    animation: none;
+  }
+}
+
+// =============================================================================
+// RTL Support Mixins
+// =============================================================================
+
+@mixin rtl {
+  [dir='rtl'] & {
+    @content;
+  }
+}
+
+@mixin logical-spacing($start, $end) {
+  margin-inline-start: $start;
+  margin-inline-end: $end;
+}
+
+// =============================================================================
+// Performance Mixins
+// =============================================================================
+
+@mixin hardware-accelerate {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000;
+}
+
+@mixin optimize-animation {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+// =============================================================================
+// Form Validation Mixins
+// =============================================================================
+
+@mixin error-state {
+  border-color: $color-danger-base;
+  &:focus {
+    box-shadow: 0 0 0 2px rgba($color-danger-base, 0.2);
+  }
+}
+
+@mixin success-state {
+  border-color: $color-success-base;
+  &:focus {
+    box-shadow: 0 0 0 2px rgba($color-success-base, 0.2);
+  }
+}
+
+// =============================================================================
+// Shadow Mixins
+// =============================================================================
+
+@mixin shadow-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+@mixin shadow-md {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@mixin shadow-lg {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+// =============================================================================
+// Transition Mixins
+// =============================================================================
+
+@mixin transition($property: all, $duration: map-get($transition-duration, normal), $timing: map-get($transition-timing, default)) {
+  transition: $property $duration $timing;
+  @include reduced-motion;
+}
+
+// =============================================================================
+// Interactive Element Mixins
+// =============================================================================
+
+@mixin interactive-hover {
+  &:hover {
+    transform: translateY(-1px);
+    @include transition(transform);
+  }
+}
+
+@mixin interactive-active {
+  &:active {
+    transform: translateY(1px);
+    @include transition(transform);
+  }
+}
+
+@mixin interactive-focus {
+  &:focus-visible {
+    @include focus-visible;
+  }
+}
+
+// =============================================================================
+// Grid Layout Mixins
+// =============================================================================
+
+@mixin grid-auto-fit($min-width: 250px, $gap: $spacing-md) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax($min-width, 1fr));
+  gap: $gap;
+}
+
+@mixin grid-auto-fill($min-width: 250px, $gap: $spacing-md) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax($min-width, 1fr));
+  gap: $gap;
+}
