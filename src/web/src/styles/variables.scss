@@ -1,0 +1,248 @@
+// Core SCSS variables for Sales & Intelligence Platform
+// Package: sass ^1.69.0
+
+// =============================================================================
+// Color System
+// =============================================================================
+
+// Primary Colors
+$color-primary-base: #007bff;
+$color-primary-light: #4da3ff;
+$color-primary-dark: #0056b3;
+$color-primary-contrast: #ffffff;
+
+// Secondary Colors
+$color-secondary-base: #6c757d;
+$color-secondary-light: #9aa0a5;
+$color-secondary-dark: #4b545c;
+$color-secondary-contrast: #ffffff;
+
+// Semantic Colors
+$color-success-base: #28a745;
+$color-success-light: #48c767;
+$color-success-dark: #1e7e34;
+$color-success-contrast: #ffffff;
+
+$color-danger-base: #dc3545;
+$color-danger-light: #e4606d;
+$color-danger-dark: #bd2130;
+$color-danger-contrast: #ffffff;
+
+$color-warning-base: #ffc107;
+$color-warning-light: #ffcd39;
+$color-warning-dark: #d39e00;
+$color-warning-contrast: #000000;
+
+$color-info-base: #17a2b8;
+$color-info-light: #31c2d8;
+$color-info-dark: #117a8b;
+$color-info-contrast: #ffffff;
+
+// Theme Colors
+$theme-light: (
+  background: #ffffff,
+  surface: #f8f9fa,
+  border: #dee2e6,
+  text: #212529,
+  text-secondary: #6c757d
+);
+
+$theme-dark: (
+  background: #121212,
+  surface: #1e1e1e,
+  border: #2d2d2d,
+  text: #ffffff,
+  text-secondary: #a0a0a0
+);
+
+// =============================================================================
+// Typography
+// =============================================================================
+
+// Font Families
+$font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+$font-family-monospace: 'SF Mono', 'Consolas', 'Monaco', monospace;
+
+// Font Sizes
+$font-size-base: 16px;
+$font-size-scale-ratio: 1.25;
+
+// Heading Sizes
+$font-size-h1: 2.5rem;
+$font-size-h2: 2rem;
+$font-size-h3: 1.75rem;
+$font-size-h4: 1.5rem;
+$font-size-h5: 1.25rem;
+$font-size-h6: 1rem;
+
+// Body Text Sizes
+$font-size-body-small: 0.875rem;
+$font-size-body-medium: 1rem;
+$font-size-body-large: 1.125rem;
+
+// Font Weights
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Line Heights
+$line-height-tight: 1.2;
+$line-height-base: 1.5;
+$line-height-relaxed: 1.75;
+
+// Letter Spacing
+$letter-spacing-tight: -0.02em;
+$letter-spacing-normal: 0;
+$letter-spacing-wide: 0.05em;
+
+// =============================================================================
+// Spacing System
+// =============================================================================
+
+$spacing-base: 8px;
+
+// Spacing Scale
+$spacing-xxs: 2px;
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+$spacing-xxxl: 64px;
+
+// Layout Spacing
+$spacing-layout-gutter: 24px;
+$spacing-container-padding: 16px;
+$spacing-section: 48px;
+
+// =============================================================================
+// Breakpoints
+// =============================================================================
+
+$breakpoints: (
+  mobile: (
+    min: 320px,
+    max: 767px
+  ),
+  tablet: (
+    min: 768px,
+    max: 1199px
+  ),
+  desktop: (
+    min: 1200px,
+    max: 1919px
+  ),
+  widescreen: (
+    min: 1920px
+  )
+);
+
+// =============================================================================
+// Z-Index Scale
+// =============================================================================
+
+$z-index: (
+  modal: 1000,
+  dropdown: 900,
+  header: 800,
+  sidebar: 700,
+  tooltip: 600,
+  overlay: 500,
+  base: 1
+);
+
+// =============================================================================
+// Transitions
+// =============================================================================
+
+$transition-duration: (
+  instant: 0.1s,
+  fast: 0.2s,
+  normal: 0.3s,
+  slow: 0.5s
+);
+
+$transition-timing: (
+  default: ease-in-out,
+  linear: linear,
+  bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55),
+  smooth: cubic-bezier(0.4, 0, 0.2, 1)
+);
+
+// =============================================================================
+// Functions
+// =============================================================================
+
+@function calculate-spacing($multiplier, $unit: 'px') {
+  @if type-of($multiplier) != 'number' or $multiplier < 0 {
+    @error 'Multiplier must be a positive number';
+  }
+  
+  @if type-of($unit) != 'string' {
+    @error 'Unit must be a string';
+  }
+  
+  $valid-units: ('px', 'rem', 'em', '%');
+  @if not index($valid-units, $unit) {
+    @error 'Invalid unit. Must be one of: #{$valid-units}';
+  }
+  
+  @return $spacing-base * $multiplier + $unit;
+}
+
+@function get-breakpoint($name, $min-or-max: 'min') {
+  @if not map-has-key($breakpoints, $name) {
+    @error 'Invalid breakpoint name. Available breakpoints: #{map-keys($breakpoints)}';
+  }
+  
+  @if $min-or-max != 'min' and $min-or-max != 'max' {
+    @error 'Second parameter must be either "min" or "max"';
+  }
+  
+  $breakpoint: map-get($breakpoints, $name);
+  $value: map-get($breakpoint, $min-or-max);
+  
+  @return '(#{$min-or-max}-width: #{$value})';
+}
+
+// =============================================================================
+// Exports
+// =============================================================================
+
+:export {
+  // Theme Colors
+  themeLight: $theme-light;
+  themeDark: $theme-dark;
+  
+  // Primary Colors
+  primaryBase: $color-primary-base;
+  primaryLight: $color-primary-light;
+  primaryDark: $color-primary-dark;
+  
+  // Typography Scale
+  fontSizeBase: $font-size-base;
+  fontSizeRatio: $font-size-scale-ratio;
+  fontWeights: (
+    regular: $font-weight-regular,
+    medium: $font-weight-medium,
+    semibold: $font-weight-semibold,
+    bold: $font-weight-bold
+  );
+  
+  // Spacing System
+  spacingScale: (
+    xxs: $spacing-xxs,
+    xs: $spacing-xs,
+    sm: $spacing-sm,
+    md: $spacing-md,
+    lg: $spacing-lg,
+    xl: $spacing-xl,
+    xxl: $spacing-xxl,
+    xxxl: $spacing-xxxl
+  );
+  
+  // Breakpoints
+  breakpointValues: $breakpoints;
+}
