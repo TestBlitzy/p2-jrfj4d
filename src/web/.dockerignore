@@ -1,0 +1,115 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+coverage
+*.tsbuildinfo
+*.map
+stats.html
+
+# Development configurations
+.vscode
+.idea
+.editorconfig
+.eslintrc*
+.prettierrc*
+.stylelintrc*
+tsconfig.json
+vite.config.ts
+jest.config.*
+.babelrc*
+*.config.js
+*.config.ts
+
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+.npmrc
+
+# Test files
+__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+tests
+coverage
+.nyc_output
+
+# Documentation
+*.md
+docs
+CHANGELOG.md
+LICENSE
+AUTHORS
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Development tools and logs
+*.log
+logs
+.cache
+.temp
+.tmp
+.turbo
+.next
+.vercel
+.netlify
+
+# TypeScript incremental compilation
+*.tsbuildinfo
+
+# Storybook
+.storybook
+stories
+*.stories.tsx
+
+# Miscellaneous
+.husky
+.vscode-test
+*.bak
+*.swp
+*.swo
+.history
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Source maps
+*.js.map
+*.css.map
+
+# Debug files
+debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development overrides
+docker-compose.override.yml
